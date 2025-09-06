@@ -8,8 +8,8 @@
 
 typedef struct s_client {
 	int id;
-	char buf[4096];
-	char msg[4096 * 2];
+	char buf[200000];
+	char msg[200000];
 } t_client;
 
 t_client *clients[1024];
@@ -19,41 +19,6 @@ int max_fd = 0, next_id = 0, server_fd = 0;
 void fatal() {
 	write(2, "Fatal error\n", strlen("Fatal error\n"));
 	exit(1);
-}
-
-int extract_message(char **buf, char **msg) {
-	char *newbuf, *newline = strstr(*buf, "\n");
-
-	if (!newline)
-		return 0;
-
-	*newline = '\0';
-	*msg = *buf;
-	newbuf = strdup(newline + 1);
-	if (!newbuf)
-		return -1;
-	free(*buf);
-	*buf = newbuf;
-	return 1;
-}
-
-char *str_join(char *buf, char *add) {
-	char *newbuf;
-	int len1 = buf ? strlen(buf) : 0;
-	int len2 = add ? strlen(add) : 0;
-
-	newbuf = malloc(len1 + len2 + 1);
-	if (!newbuf)
-		return NULL;
-
-	newbuf[0] = 0;
-	if (buf)
-		strcat(newbuf, buf);
-	if (add)
-		strcat(newbuf, add);
-
-	free(buf);
-	return newbuf;
 }
 
 void send_all(int except_fd, char *msg) {
@@ -71,8 +36,8 @@ void new_connection() {
 	if (client_fd < 0)
 		fatal();
 
-	if (!(clients[client_fd] = calloc(1, sizeof(t_client))))
-		fatal();
+	// if (!(clients[client_fd] = calloc(1, sizeof(t_client))))
+	// 	fatal();
 	clients[client_fd]->id = next_id++;
 
 	FD_SET(client_fd, &active);
@@ -84,7 +49,8 @@ void new_connection() {
 	send_all(client_fd, buff);
 }
 
-void client_left(int fd) {
+void client_left(int fd)
+{
 	char buff[64];
 	sprintf(buff, "server: client %d just left\n", clients[fd]->id);
 	send_all(fd, buff);
@@ -95,27 +61,23 @@ void client_left(int fd) {
 	FD_CLR(fd, &active);
 }
 
-void handle_msg(int fd) {
+void handle_msg(int fd)
+{
 	char recv_buf[4096];
 	int r = recv(fd, recv_buf, sizeof(recv_buf) - 1, 0);
-	if (r <= 0) {
+	if (r <= 0)
+    {
 		client_left(fd);
 		return;
 	}
 	recv_buf[r] = '\0';
-	clients[fd]->buf = str_join(clients[fd]->buf, recv_buf);
-	if (!clients[fd]->buf)
-		fatal();
-
-	char *msg;
-	while (extract_message(&clients[fd]->buf, &msg)) {
-		sprintf(clients[fd]->msg, "client %d: %s\n", clients[fd]->id, msg);
-		send_all(fd, clients[fd]->msg);
-	}
+	sprintf(clients[fd]->msg, "client %d: %s\n", clients[fd]->id, recv_buf);
+	send_all(fd, clients[fd]->msg);
 }
 
 int main(int ac, char **av) {
-	if (ac != 2) {
+	if (ac != 2)
+    {
 		write(2, "Wrong number of arguments\n", 27);
 		exit(1);
 	}
